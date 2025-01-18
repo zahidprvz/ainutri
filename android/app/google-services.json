@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "110472199684",
+    "project_id": "ainutri-fdcef",
+    "storage_bucket": "ainutri-fdcef.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:110472199684:android:155cddf8ac46f560ffbf51",
+        "android_client_info": {
+          "package_name": "ai.nutri"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAX3fOSpxoTmnVJcaSTOQcJWArVU7f9mHc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
