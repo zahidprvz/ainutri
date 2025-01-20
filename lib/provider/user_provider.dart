@@ -1,3 +1,4 @@
+import 'package:ainutri/models/food_log_entry_model.dart';
 import 'package:ainutri/models/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -60,8 +61,7 @@ class UserProvider with ChangeNotifier {
           .collection('users')
           .doc(_auth.currentUser!.uid)
           .update({'isRegistered': true});
-      // Update the local user data to reflect the change
-      _user = _user.copyWith(isRegistered: true);
+      // _user.isRegistered = true; // No need to set this here
       notifyListeners();
     }
   }
@@ -81,7 +81,9 @@ class UserProvider with ChangeNotifier {
       String? diet,
       List<String>? accomplishments,
       double? rating,
-      String? username}) async {
+      String? username,
+      String? photoURL,
+      Map<String, dynamic>? mealPlan}) async {
     if (_auth.currentUser == null) {
       // Handle the case where the user is not logged in
       return;
@@ -106,6 +108,8 @@ class UserProvider with ChangeNotifier {
         if (accomplishments != null) 'accomplishments': accomplishments,
         if (rating != null) 'rating': rating,
         if (username != null) 'username': username,
+        if (photoURL != null) 'photoURL': photoURL,
+        if (mealPlan != null) 'mealPlan': mealPlan,
       });
 
       // Update local user data
@@ -124,6 +128,8 @@ class UserProvider with ChangeNotifier {
         accomplishments: accomplishments,
         rating: rating,
         username: username,
+        photoURL: photoURL,
+        mealPlan: mealPlan,
       );
 
       notifyListeners();
@@ -134,5 +140,172 @@ class UserProvider with ChangeNotifier {
         SnackBar(content: Text("Failed to update user data: $e")),
       );
     }
+  }
+
+  // Add a new method to add a food log entry
+  Future<void> addFoodLogEntry(FoodLogEntry entry) async {
+    if (_auth.currentUser == null) {
+      print("User not logged in.");
+      return;
+    }
+
+    try {
+      await _firestore
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .collection('foodLogs')
+          .add(entry.toMap()); // Use the toMap method
+
+      print("Food log entry added successfully");
+    } catch (e) {
+      print("Error adding food log entry: $e");
+      // Handle error (e.g., show a snackbar)
+    }
+  }
+
+  // Method to fetch food log entries for the current day
+  Stream<List<FoodLogEntry>> getFoodLogsForToday() {
+    if (_auth.currentUser == null) {
+      // Return an empty stream if the user is not logged in
+      return Stream.value([]);
+    }
+
+    // Get the start and end of the current day
+    final now = DateTime.now();
+    final startOfDay =
+        Timestamp.fromDate(DateTime(now.year, now.month, now.day));
+    final endOfDay =
+        Timestamp.fromDate(DateTime(now.year, now.month, now.day + 1));
+
+    // Query Firestore for food log entries within the current day
+    return _firestore
+        .collection('users')
+        .doc(_auth.currentUser!.uid)
+        .collection('foodLogs')
+        .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
+        .where('timestamp', isLessThan: endOfDay)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => FoodLogEntry.fromFirestore(doc.data()))
+          .toList();
+    });
+  }
+
+  // Method to calculate total calories consumed for the current day
+  Future<double> calculateDailyCalorieTotal() async {
+    if (_auth.currentUser == null) {
+      return 0.0;
+    }
+
+    final now = DateTime.now();
+    final startOfDay =
+        Timestamp.fromDate(DateTime(now.year, now.month, now.day));
+    final endOfDay =
+        Timestamp.fromDate(DateTime(now.year, now.month, now.day + 1));
+
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(_auth.currentUser!.uid)
+        .collection('foodLogs')
+        .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
+        .where('timestamp', isLessThan: endOfDay)
+        .get();
+
+    double totalCalories = 0.0;
+    for (var doc in snapshot.docs) {
+      final entry = FoodLogEntry.fromFirestore(doc.data());
+      totalCalories +=
+          entry.calories ?? 0.0; // Use null-aware operator with a default value
+    }
+
+    return totalCalories;
+  }
+
+  // Method to calculate total protein consumed for the current day
+  Future<double> calculateDailyProteinTotal() async {
+    if (_auth.currentUser == null) {
+      return 0.0;
+    }
+
+    final now = DateTime.now();
+    final startOfDay =
+        Timestamp.fromDate(DateTime(now.year, now.month, now.day));
+    final endOfDay =
+        Timestamp.fromDate(DateTime(now.year, now.month, now.day + 1));
+
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(_auth.currentUser!.uid)
+        .collection('foodLogs')
+        .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
+        .where('timestamp', isLessThan: endOfDay)
+        .get();
+
+    double totalProtein = 0.0;
+    for (var doc in snapshot.docs) {
+      final entry = FoodLogEntry.fromFirestore(doc.data());
+      totalProtein += entry.protein ?? 0.0;
+    }
+
+    return totalProtein;
+  }
+
+  // Method to calculate total carbs consumed for the current day
+  Future<double> calculateDailyCarbsTotal() async {
+    if (_auth.currentUser == null) {
+      return 0.0;
+    }
+
+    final now = DateTime.now();
+    final startOfDay =
+        Timestamp.fromDate(DateTime(now.year, now.month, now.day));
+    final endOfDay =
+        Timestamp.fromDate(DateTime(now.year, now.month, now.day + 1));
+
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(_auth.currentUser!.uid)
+        .collection('foodLogs')
+        .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
+        .where('timestamp', isLessThan: endOfDay)
+        .get();
+
+    double totalCarbs = 0.0;
+    for (var doc in snapshot.docs) {
+      final entry = FoodLogEntry.fromFirestore(doc.data());
+      totalCarbs += entry.carbs ?? 0.0;
+    }
+
+    return totalCarbs;
+  }
+
+  // Method to calculate total fat consumed for the current day
+  Future<double> calculateDailyFatTotal() async {
+    if (_auth.currentUser == null) {
+      return 0.0;
+    }
+
+    final now = DateTime.now();
+    final startOfDay =
+        Timestamp.fromDate(DateTime(now.year, now.month, now.day));
+    final endOfDay =
+        Timestamp.fromDate(DateTime(now.year, now.month, now.day + 1));
+
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(_auth.currentUser!.uid)
+        .collection('foodLogs')
+        .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
+        .where('timestamp', isLessThan: endOfDay)
+        .get();
+
+    double totalFat = 0.0;
+    for (var doc in snapshot.docs) {
+      final entry = FoodLogEntry.fromFirestore(doc.data());
+      totalFat += entry.fat ?? 0.0;
+    }
+
+    return totalFat;
   }
 }

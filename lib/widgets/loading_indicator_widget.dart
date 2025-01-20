@@ -19,8 +19,7 @@ class LoadingIndicatorWidget extends AnimatedWidget {
             width: 100,
             height: 100,
             child: CircularProgressIndicator(
-              value:
-                  _progress.value, // Use the animation value for the indicator
+              value: _progress.value,
               strokeWidth: 5,
             ),
           ),
@@ -28,7 +27,7 @@ class LoadingIndicatorWidget extends AnimatedWidget {
           Transform.rotate(
             angle: _progress.value * 2.0 * 3.14159, // Full rotation
             child: Image.asset(
-              'assets/logo.png', // Replace with your logo
+              'assets/logo.png',
               width: 50,
               height: 50,
             ),

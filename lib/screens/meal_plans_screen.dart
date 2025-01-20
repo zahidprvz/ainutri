@@ -238,7 +238,7 @@ class _MealPlansScreenState extends State<MealPlansScreen> {
     return Scaffold(
       appBar: CustomAppBar(
         title: localization?.translate("meal_plan_title") ?? "Plan de Repas",
-        showProfile: false,
+        showProfile: true,
         showSignOut: false,
       ),
       body: Center(

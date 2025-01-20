@@ -19,6 +19,7 @@ class UserData {
   final List<String>? accomplishments;
   final double? rating;
   final String? photoURL;
+  final Map<String, dynamic>? mealPlan;
 
   UserData({
     this.username,
@@ -39,6 +40,7 @@ class UserData {
     this.accomplishments,
     this.rating,
     this.photoURL,
+    this.mealPlan,
   });
 
   // Create a UserData object from Firestore data
@@ -66,6 +68,7 @@ class UserData {
           : null,
       rating: data['rating']?.toDouble(),
       photoURL: data['photoURL'],
+      mealPlan: data['mealPlan'],
     );
   }
 
@@ -86,6 +89,7 @@ class UserData {
     String? username,
     String? photoURL,
     bool? isRegistered,
+    Map<String, dynamic>? mealPlan,
   }) {
     return UserData(
       username: username ?? this.username,
@@ -107,6 +111,7 @@ class UserData {
       accomplishments: accomplishments ?? this.accomplishments,
       rating: rating ?? this.rating,
       photoURL: photoURL ?? this.photoURL,
+      mealPlan: mealPlan ?? this.mealPlan,
     );
   }
 }

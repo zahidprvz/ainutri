@@ -16,7 +16,7 @@ class MealCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(16.0),
             child: Text(
               mealType,
               style: const TextStyle(
@@ -27,7 +27,15 @@ class MealCard extends StatelessWidget {
             ),
           ),
           const Divider(),
-          ...meals.map<Widget>((meal) => _buildMealItem(meal)).toList(),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            itemCount: meals.length, // Use the length of the meals list
+            itemBuilder: (context, index) {
+              final meal = meals[index];
+              return _buildMealItem(meal);
+            },
+          ),
         ],
       ),
     );

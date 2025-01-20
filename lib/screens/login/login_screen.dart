@@ -1,7 +1,6 @@
 import 'package:ainutri/resources/auth_methods.dart';
 import 'package:ainutri/screens/home/home_screen.dart';
 import 'package:ainutri/screens/login/sign_up_screen.dart';
-import 'package:ainutri/widgets/input_text_widget.dart';
 import 'package:flutter/material.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -75,51 +74,52 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 64.0),
-                // Logo (replace with your logo)
-                Image.asset(
-                  'assets/logo.png', // Replace with your logo asset
-                  height: 100.0,
+                // Logo
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20.0),
+                  child: Image.asset(
+                    'assets/logo.png', // Replace with your logo asset
+                    height: 100.0,
+                  ),
                 ),
                 const SizedBox(height: 64.0),
                 // Email textfield
-                InputTextWidget(
-                  hintText: 'Entrez votre email',
+                TextField(
                   controller: _emailController,
-                  textInputType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    hintText: 'Entrez votre email',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 24.0),
                 // Password textfield
-                InputTextWidget(
-                  hintText: 'Entrez votre mot de passe',
+                TextField(
                   controller: _passwordController,
-                  textInputType: TextInputType.text,
-                  isPass: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Entrez votre mot de passe',
+                    border: OutlineInputBorder(),
+                  ),
+                  obscureText: true,
+                  keyboardType: TextInputType.text,
                 ),
                 const SizedBox(height: 24.0),
                 // Login button
-                InkWell(
-                  onTap: loginUser,
-                  child: Container(
-                    width: double.infinity,
-                    alignment: Alignment.center,
+                ElevatedButton(
+                  onPressed: loginUser,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 12.0),
-                    decoration: ShapeDecoration(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4.0),
-                      ),
-                      color: Colors.blue, // Replace with your primary color
-                    ),
-                    child: _isLoading
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Se connecter',
-                            style: TextStyle(color: Colors.white),
-                          ),
+                    minimumSize: const Size(double.infinity, 50), // Full width
                   ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(
+                          color: Colors.white,
+                        )
+                      : const Text(
+                          'Se connecter',
+                          style: TextStyle(color: Colors.white),
+                        ),
                 ),
                 const SizedBox(height: 24.0),
                 // Signup link
@@ -127,13 +127,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text("Vous n'avez pas de compte?"),
-                    GestureDetector(
-                      onTap: navigateToSignup,
-                      child: const Text(
-                        " S'inscrire",
+                    TextButton(
+                      onPressed: navigateToSignup,
+                      child: Text(
+                        "S'inscrire",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue, // Replace with your primary color
+                          color: Theme.of(context).primaryColor,
                         ),
                       ),
                     ),

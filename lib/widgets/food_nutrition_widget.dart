@@ -8,7 +8,6 @@ class FoodNutritionsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Handle error case
     if (foodData.containsKey('error')) {
       return Padding(
         padding: const EdgeInsets.all(16.0),

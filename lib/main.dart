@@ -5,6 +5,12 @@ import 'package:ainutri/screens/home/home_screen.dart';
 import 'package:ainutri/screens/login/login_screen.dart';
 import 'package:ainutri/screens/login/sign_up_screen.dart';
 import 'package:ainutri/screens/profile_screen.dart';
+import 'package:ainutri/widgets/challenges_widgets/cravings_tips.dart';
+import 'package:ainutri/widgets/challenges_widgets/emotional_eating_tips.dart';
+import 'package:ainutri/widgets/challenges_widgets/motivation_tips.dart';
+import 'package:ainutri/widgets/challenges_widgets/support_tips.dart';
+import 'package:ainutri/widgets/challenges_widgets/time_management_tips.dart';
+import 'package:ainutri/widgets/challenges_widgets/weight_loss_tips.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -140,6 +146,12 @@ class MyApp extends StatelessWidget {
           '/ask_user_step17': (context) => const AskUserStep17(),
           '/ask_user_step18': (context) => const AskUserStep18(),
           '/ask_user_step19': (context) => const AskUserStep19(),
+          '/weight_loss_tips': (context) => const WeightLossTips(),
+          '/emotional_eating_tips': (context) => const EmotionalEatingTips(),
+          '/time_management_tips': (context) => const TimeManagementTips(),
+          '/motivation_tips': (context) => const MotivationTips(),
+          '/cravings_tips': (context) => const CravingsTips(),
+          '/support_tips': (context) => const SupportTips(),
         },
       ),
     );
