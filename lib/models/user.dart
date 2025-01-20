@@ -20,6 +20,10 @@ class UserData {
   final double? rating;
   final String? photoURL;
   final Map<String, dynamic>? mealPlan;
+  final String? subscriptionStatus;
+  final DateTime? subscriptionExpiryDate;
+  final bool? hasUsedCoupon;
+  final bool? isPremium;
 
   UserData({
     this.username,
@@ -41,6 +45,10 @@ class UserData {
     this.rating,
     this.photoURL,
     this.mealPlan,
+    this.subscriptionStatus,
+    this.subscriptionExpiryDate,
+    this.hasUsedCoupon = false,
+    this.isPremium = false,
   });
 
   // Create a UserData object from Firestore data
@@ -69,6 +77,10 @@ class UserData {
       rating: data['rating']?.toDouble(),
       photoURL: data['photoURL'],
       mealPlan: data['mealPlan'],
+      subscriptionStatus: data['subscriptionStatus'],
+      subscriptionExpiryDate: data['subscriptionExpiryDate']?.toDate(),
+      hasUsedCoupon: data['hasUsedCoupon'] ?? false,
+      isPremium: data['isPremium'] ?? false,
     );
   }
 
@@ -90,6 +102,10 @@ class UserData {
     String? photoURL,
     bool? isRegistered,
     Map<String, dynamic>? mealPlan,
+    String? subscriptionStatus,
+    DateTime? subscriptionExpiryDate,
+    bool? hasUsedCoupon,
+    bool? isPremium,
   }) {
     return UserData(
       username: username ?? this.username,
@@ -112,6 +128,11 @@ class UserData {
       rating: rating ?? this.rating,
       photoURL: photoURL ?? this.photoURL,
       mealPlan: mealPlan ?? this.mealPlan,
+      subscriptionStatus: subscriptionStatus ?? this.subscriptionStatus,
+      subscriptionExpiryDate:
+          subscriptionExpiryDate ?? this.subscriptionExpiryDate,
+      hasUsedCoupon: hasUsedCoupon ?? this.hasUsedCoupon,
+      isPremium: isPremium ?? this.isPremium,
     );
   }
 }

@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:ainutri/models/food_log_entry_model.dart';
 import 'package:ainutri/widgets/challenges_card.dart';
-import 'package:ainutri/widgets/custom_app_bar.dart';
 import 'package:ainutri/widgets/food_log_widgets/daily_summary_card.dart';
 import 'package:ainutri/widgets/food_log_widgets/recent_meals.dart';
+import 'package:ainutri/widgets/loading_indicator_widget.dart';
 import 'package:ainutri/widgets/upload_options_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -22,8 +22,7 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ImagePicker _picker = ImagePicker();
   XFile? _image;
   bool _isLoading = false;
@@ -40,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(seconds: 1),
     )..repeat();
     _loadFoodLogs();
     _fetchDailyTotals();
@@ -91,17 +90,44 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _analyzeImageWithGemini(XFile image) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    // Check if user is subscribed or has used a valid coupon
+    if (!userProvider.hasActiveSubscription() &&
+        !userProvider.hasUsedCoupon()) {
+      _showSubscriptionDialog();
+      return;
+    }
+
     const apiKey =
         'AIzaSyD6KwygU1v79sfLxmrzscgxE3_54rS5stw'; // Replace with your actual API key
     const apiUrl =
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey';
 
+    // Show loading indicator in a dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LoadingIndicatorWidget(controller: _animationController),
+                SizedBox(width: 20),
+                Text("Analyzing..."),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
     try {
       final imageBytes = await image.readAsBytes();
       final base64Image = base64Encode(imageBytes);
-
-      // Show the loading overlay on the image
-      _showLoadingOverlay();
 
       final response = await http.post(
         Uri.parse(apiUrl),
@@ -126,60 +152,36 @@ class _HomeScreenState extends State<HomeScreen>
         }),
       );
 
-      // Remove the loading overlay
+      // Close the loading dialog
       Navigator.of(context).pop();
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         print("API Response: ${response.body}");
 
-        if (responseData.containsKey('candidates') &&
-            responseData['candidates'].isNotEmpty) {
-          final candidate = responseData['candidates'][0];
-          if (candidate.containsKey('content') &&
-              candidate['content'].containsKey('parts')) {
-            final parts = candidate['content']['parts'];
-            final textPart = parts.firstWhere(
-              (part) =>
-                  part is Map<String, dynamic> && part.containsKey('text'),
-              orElse: () => null,
-            );
+        final textResponse =
+            responseData['candidates'][0]['content']['parts'][0]['text'];
+        final regex = RegExp(r'`json(.*?)`', dotAll: true);
+        final match = regex.firstMatch(textResponse);
 
-            if (textPart != null) {
-              final textResponse = textPart['text'];
-              final regex = RegExp(r'`json(.*?)`', dotAll: true);
-              final match = regex.firstMatch(textResponse);
-
-              if (match != null) {
-                final jsonString = match.group(1)!.trim();
-                try {
-                  final foodData = jsonDecode(jsonString);
-                  if (foodData is Map<String, dynamic> &&
-                      foodData.containsKey('food')) {
-                    // Show results in a new dialog with editing capability
-                    _showResultDialog(foodData);
-                  } else {
-                    throw Exception('Invalid food data format: $jsonString');
-                  }
-                } catch (e) {
-                  print("Error decoding JSON: $e");
-                  _showErrorDialog('Error decoding food data.');
-                }
-              } else {
-                print("Could not find JSON in the text response.");
-                _showErrorDialog('Could not find food data in the response.');
-              }
+        if (match != null) {
+          final jsonString = match.group(1)!.trim();
+          try {
+            final foodData = jsonDecode(jsonString);
+            if (foodData is Map<String, dynamic> &&
+                foodData.containsKey('food')) {
+              // Show results in a new dialog with editing capability
+              _showResultDialog(foodData);
             } else {
-              print("Text part not found in the response.");
-              _showErrorDialog('Text part not found in the response.');
+              throw Exception('Invalid food data format: $jsonString');
             }
-          } else {
-            print("Content or parts not found in the candidate.");
-            _showErrorDialog('Content or parts not found in the candidate.');
+          } catch (e) {
+            print("Error decoding JSON: $e");
+            _showErrorDialog('Error decoding food data.');
           }
         } else {
-          print("No candidates found in the response.");
-          _showErrorDialog('No candidates found in the response.');
+          print("Could not find JSON in the text response.");
+          _showErrorDialog('Could not find food data in the response.');
         }
       } else {
         print(
@@ -192,33 +194,36 @@ class _HomeScreenState extends State<HomeScreen>
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isLoading = false; // Ensure loading stops
         });
       }
     }
   }
 
-  void _showLoadingOverlay() {
+  void _showSubscriptionDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false,
       builder: (BuildContext context) {
-        return Dialog(
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          child: Center(
-            child: SizedBox(
-              height: 350, // Adjust the size as needed
-              width: 350, // Adjust the size as needed
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Image.file(File(_image!.path)), // Display the selected image
-                  CircularProgressIndicator(), // Use your loading indicator
-                ],
-              ),
+        return AlertDialog(
+          title: Text("Subscription Required"),
+          content: Text(
+              "This feature requires an active subscription. Please subscribe to continue."),
+          actions: <Widget>[
+            TextButton(
+              child: Text("Subscribe"),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                Navigator.pushNamed(
+                    context, '/payment'); // Navigate to payment screen
+              },
             ),
-          ),
+            TextButton(
+              child: Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
         );
       },
     );
@@ -395,9 +400,20 @@ class _HomeScreenState extends State<HomeScreen>
     var userProvider = Provider.of<UserProvider>(context);
 
     return Scaffold(
-      appBar: CustomAppBar(
-        title: 'Accueil',
-        showProfile: true,
+      appBar: AppBar(
+        title: Text(localization?.translate("home_title") ?? 'Home'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_circle),
+            onPressed: () {
+              Navigator.pushNamed(context, '/profile');
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => _signOut(context),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(

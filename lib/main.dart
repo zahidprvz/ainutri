@@ -4,6 +4,7 @@ import 'package:ainutri/screens/bottom_navigation_layout.dart';
 import 'package:ainutri/screens/home/home_screen.dart';
 import 'package:ainutri/screens/login/login_screen.dart';
 import 'package:ainutri/screens/login/sign_up_screen.dart';
+import 'package:ainutri/screens/payment/payment_screen.dart';
 import 'package:ainutri/screens/profile_screen.dart';
 import 'package:ainutri/widgets/challenges_widgets/cravings_tips.dart';
 import 'package:ainutri/widgets/challenges_widgets/emotional_eating_tips.dart';
@@ -39,12 +40,21 @@ import 'screens/ask_user/ask_user_step18.dart';
 import 'screens/ask_user/ask_user_step19.dart';
 import 'package:provider/provider.dart';
 import 'screens/meal_plans_screen.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
+import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
+import 'package:flutter/foundation.dart';
+import 'provider/payment_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // In-App Purchases:
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    InAppPurchaseAndroidPlatformAddition.enablePendingPurchases();
+  }
   runApp(const MyApp());
 }
 
@@ -53,8 +63,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => UserProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => PaymentProvider()),
+      ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'Nutri AI',
@@ -124,7 +137,7 @@ class MyApp extends StatelessWidget {
           '/login': (context) => const LoginScreen(),
           '/signup': (context) => const SignupScreen(),
           '/onboarding': (context) => const OnboardingScreen(),
-          '/home': (context) => const HomeScreen(),
+          // '/home': (context) => const HomeScreen(),
           '/meal_plans': (context) => const MealPlansScreen(),
           '/profile': (context) => const ProfileScreen(),
           '/ask_user_step1': (context) => const AskUserStep1(),
@@ -152,6 +165,7 @@ class MyApp extends StatelessWidget {
           '/motivation_tips': (context) => const MotivationTips(),
           '/cravings_tips': (context) => const CravingsTips(),
           '/support_tips': (context) => const SupportTips(),
+          '/payment': (context) => const PaymentScreen(),
         },
       ),
     );

@@ -3,13 +3,15 @@ import 'package:ainutri/models/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'dart:async';
 
 class UserProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  UserData _user = UserData(); // Initialize with default values
+  UserData _user = UserData();
   bool _isDataLoaded = false;
+  StreamSubscription<List<PurchaseDetails>>? _subscription;
 
   UserData get user => _user;
   bool get isDataLoaded => _isDataLoaded;
@@ -17,6 +19,31 @@ class UserProvider with ChangeNotifier {
   bool get isRegistered {
     return _user.isRegistered ?? false;
   }
+
+  // In-App Purchase related properties
+  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
+  bool _isAvailable = false; // Is IAP available on the device
+  List<ProductDetails> _products = []; // Available products for purchase
+  List<PurchaseDetails> _purchases = []; // User's past purchases
+  String?
+      _subscriptionStatus; // e.g., 'active', 'expired', 'canceled', 'free_trial'
+  bool _purchasePending = false;
+  DateTime? _subscriptionExpiryDate;
+  String? _couponCode;
+  bool _purchaseSuccess = false;
+  String? _error;
+
+  // Getters for IAP related properties
+  bool get isAvailable => _isAvailable;
+  List<ProductDetails> get products => _products;
+  String? get subscriptionStatus => _subscriptionStatus;
+  DateTime? get subscriptionExpiryDate => _subscriptionExpiryDate;
+
+  // Product IDs (replace with your actual product IDs from App Store Connect)
+  final Set<String> _productIds = {
+    'com.example.ainutri.sub.monthly',
+    'com.example.ainutri.sub.yearly',
+  };
 
   UserProvider() {
     _auth.authStateChanges().listen((User? user) {
@@ -29,6 +56,39 @@ class UserProvider with ChangeNotifier {
         notifyListeners();
       }
     });
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    _isAvailable = await _inAppPurchase.isAvailable();
+
+    if (_isAvailable) {
+      await _getProducts();
+      _subscription = _inAppPurchase.purchaseStream.listen(
+        _handlePurchaseUpdate,
+        onDone: () {
+          _subscription!.cancel();
+        },
+        onError: (error) {
+          // Handle error here
+          print('Error during purchase: ${error.toString()}');
+        },
+      );
+      await _loadCouponCode();
+    }
+
+    notifyListeners();
+  }
+
+  Future<void> _getProducts() async {
+    final ProductDetailsResponse response =
+        await _inAppPurchase.queryProductDetails(_productIds);
+    if (response.error != null) {
+      // Handle the error here
+      print('Error fetching products: ${response.error}');
+    } else {
+      _products = response.productDetails;
+    }
   }
 
   Future<void> _loadUserData(String uid) async {
@@ -82,8 +142,7 @@ class UserProvider with ChangeNotifier {
       List<String>? accomplishments,
       double? rating,
       String? username,
-      String? photoURL,
-      Map<String, dynamic>? mealPlan}) async {
+      String? photoURL}) async {
     if (_auth.currentUser == null) {
       // Handle the case where the user is not logged in
       return;
@@ -109,7 +168,6 @@ class UserProvider with ChangeNotifier {
         if (rating != null) 'rating': rating,
         if (username != null) 'username': username,
         if (photoURL != null) 'photoURL': photoURL,
-        if (mealPlan != null) 'mealPlan': mealPlan,
       });
 
       // Update local user data
@@ -129,7 +187,6 @@ class UserProvider with ChangeNotifier {
         rating: rating,
         username: username,
         photoURL: photoURL,
-        mealPlan: mealPlan,
       );
 
       notifyListeners();
@@ -307,5 +364,158 @@ class UserProvider with ChangeNotifier {
     }
 
     return totalFat;
+  }
+
+  // Method to fetch the coupon code from Firestore
+  Future<void> _loadCouponCode() async {
+    try {
+      DocumentSnapshot doc =
+          await _firestore.collection('appData').doc('paymentSettings').get();
+      if (doc.exists) {
+        _couponCode = doc.get('couponCode') ?? '';
+      }
+    } catch (e) {
+      print("Error fetching coupon code: $e");
+    }
+  }
+
+  // Method to check if a coupon code is valid
+  bool isCouponValid(String? code) {
+    return code != null && code == _couponCode;
+  }
+
+  // Method to apply a coupon code (implement your logic here)
+  void applyCoupon(String code) {
+    if (isCouponValid(code)) {
+      // Apply the discount or enable premium features
+      _user = _user.copyWith(
+          isPremium: true); // Assuming you have an isPremium field in UserData
+      notifyListeners();
+    }
+  }
+
+  // Method to handle successful purchase
+  Future<void> _handlePurchase(PurchaseDetails purchaseDetails) async {
+    if (purchaseDetails.status == PurchaseStatus.purchased) {
+      // Verify the purchase (implement your verification logic here)
+      bool isValid = await _verifyPurchase(purchaseDetails);
+
+      if (isValid) {
+        // Update user's subscription status in Firestore
+        await _firestore
+            .collection('users')
+            .doc(_auth.currentUser!.uid)
+            .update({
+          'subscriptionStatus': 'active', // Or other relevant status
+          'subscriptionExpiryDate': Timestamp.fromDate(DateTime.now()
+              .add(Duration(days: 30))), // Example: 30 days for monthly
+        });
+
+        // Update local user data
+        _user = _user.copyWith(
+          subscriptionStatus: 'active',
+          subscriptionExpiryDate: DateTime.now().add(Duration(days: 30)),
+        );
+
+        _purchaseSuccess = true;
+        notifyListeners();
+      } else {
+        // Handle invalid purchase
+        _handleInvalidPurchase(purchaseDetails);
+      }
+    }
+  }
+
+  // Placeholder for purchase verification logic
+  Future<bool> _verifyPurchase(PurchaseDetails purchaseDetails) async {
+    // TODO: Implement server-side receipt validation to verify the purchase
+    return true; // Assume purchase is valid for now
+  }
+
+  // Placeholder for handling invalid purchase
+  void _handleInvalidPurchase(PurchaseDetails purchaseDetails) {
+    print('Invalid purchase: ${purchaseDetails.productID}');
+    // TODO: Handle invalid purchase (e.g., display an error message)
+  }
+
+  // Method to handle errors during the purchase process
+  void _handleError(IAPError? error) {
+    _error = error?.message ?? 'An unknown error occurred.';
+    _purchasePending = false;
+    notifyListeners();
+  }
+
+  // Method to initiate the purchase process
+  void buySubscription(ProductDetails product) {
+    final PurchaseParam purchaseParam = PurchaseParam(productDetails: product);
+    _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
+  }
+
+  // Method to check if the user has an active subscription
+  bool hasActiveSubscription() {
+    return _user.subscriptionStatus == 'active' &&
+        (_user.subscriptionExpiryDate == null ||
+            _user.subscriptionExpiryDate!.isAfter(DateTime.now()));
+  }
+
+  // Method to check if the user has used a coupon
+  bool hasUsedCoupon() {
+    return _user.hasUsedCoupon ?? false;
+  }
+
+  // Method to mark that the user has used a coupon
+  Future<void> markCouponAsUsed() async {
+    if (_auth.currentUser != null) {
+      await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
+        'hasUsedCoupon': true,
+      });
+      _user = _user.copyWith(hasUsedCoupon: true);
+      notifyListeners();
+    }
+  }
+
+  // Exposing a method to get available products
+  List<ProductDetails> getAvailableProducts() {
+    return _products;
+  }
+
+  // Method to check if a purchase is pending
+  bool isPurchasePending() {
+    return _purchasePending;
+  }
+
+  // Method to get any error that occurred during the purchase process
+  String? getPurchaseError() {
+    return _error;
+  }
+
+  // Call this when the user completes the purchase process
+  void _handlePurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) {
+    purchaseDetailsList.forEach((PurchaseDetails purchaseDetails) async {
+      if (purchaseDetails.status == PurchaseStatus.pending) {
+        // Show a loading indicator or some UI to indicate the purchase is pending
+        _purchasePending = true;
+        notifyListeners();
+      } else {
+        if (purchaseDetails.status == PurchaseStatus.error) {
+          _handleError(purchaseDetails.error);
+        } else if (purchaseDetails.status == PurchaseStatus.purchased ||
+            purchaseDetails.status == PurchaseStatus.restored) {
+          bool valid = await _verifyPurchase(purchaseDetails);
+          if (valid) {
+            // Handle successful purchase
+            await _handlePurchase(purchaseDetails);
+          } else {
+            _handleInvalidPurchase(purchaseDetails);
+          }
+        }
+
+        if (purchaseDetails.pendingCompletePurchase) {
+          await _inAppPurchase.completePurchase(purchaseDetails);
+        }
+        _purchasePending = false;
+        notifyListeners();
+      }
+    });
   }
 }
